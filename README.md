@@ -129,6 +129,40 @@ Each line represents one alignment block's coordinates:
 sequence_name    start    end
 ```
 
+### 7. blockdescribe
+Generates a detailed tab-delimited summary of each alignment block.
+
+```bash
+python MAFtools.py blockdescribe -o blocks_summary.tsv alignment.maf
+```
+
+**Options:**
+- `-o, --output`: Output TSV file (default: mafblocks.tsv)
+
+**Output columns:**
+- `refseq`: Reference sequence name (first sequence in block)
+- `start`: Start coordinate of reference sequence
+- `size`: Number of non-gap bases in reference sequence
+- `length`: Total number of columns in the alignment block
+- `mean_pairwise_identity`: Average pairwise identity of all sequences to reference (0-1)
+- `gaps_fraction`: Average fraction of gaps across all sequences (0-1)
+
+**Example output:**
+```tsv
+refseq          start   size    length  mean_pairwise_identity  gaps_fraction
+hg38.chr1       1000    450     500     0.8523                  0.1000
+hg38.chr1       2000    380     400     0.9125                  0.0500
+hg38.chr2       5000    290     300     0.7856                  0.0333
+```
+
+This is useful for:
+- Quality assessment of alignment blocks
+- Identifying highly conserved or divergent regions
+- Pre-filtering analysis to select blocks of interest
+- Generating summary statistics for downstream analysis
+
+
+
 ## Examples
 
 ### Extract specific genomic regions:
