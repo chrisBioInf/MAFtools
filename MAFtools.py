@@ -31,7 +31,7 @@ THIS_FILE = os.path.abspath(__file__)
 THIS_DIR = os.path.dirname(THIS_FILE)
 
 
-usage_statement = "Usage: MAFtools [program] [options] [MAF file], with program being one of 'describe', 'merge', 'ungap', 'filter', 'window', 'select', 'highlight', 'fill', 'toBed', 'toGTF', 'toFasta', 'psl2bed', 'trimNames'."
+usage_statement = "Usage: MAFtools [program] [options] [MAF file], where `program` is one of: `describe`, `merge`, `filter`, `window`, `select`, `toBed`"
 
 
 strand_dict = {
