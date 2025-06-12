@@ -26,7 +26,7 @@ pip install biopython numpy
 python MAFtools.py [program] [options] [MAF file]
 ```
 
-Where `program` is one of: `describe`, `merge`, `filter`, `window`, `select`, `toBed`
+Where `program` is one of: `describe`, `merge`, `filter`, `window`, `select`, `toBed`, `blockdescribe`
 
 ## Core Functionality
 
