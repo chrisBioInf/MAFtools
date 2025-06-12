@@ -11,8 +11,6 @@ MAFtools is a command-line utility that provides various operations for MAF alig
 **Institution:** University Leipzig  
 **License:** GPLv2
 
-## Installation
-
 ### Requirements
 - Python 3.x
 - BioPython
@@ -131,38 +129,19 @@ Each line represents one alignment block's coordinates:
 sequence_name    start    end
 ```
 
-## Helper Functions
-
-The toolkit includes several utility functions:
-
-- **`eliminate_consensus_gaps()`**: Removes gap-only columns from alignments
-- **`max_gap_seqs()`**: Filters sequences exceeding a gap threshold
-- **`pairwise_sequence_identity()`**: Calculates sequence similarity
-- **`local_species_consensus()`**: Computes species overlap between blocks
-- **`filter_by_seq_length()`**: Removes outlier sequences based on length
-
-## MAF Format Notes
-
-- Coordinates are 0-based, half-open intervals
-- The reference sequence is typically the first sequence in each block
-- Gap characters are represented by '-'
-- Each block contains aligned sequences with metadata (start, size, strand, srcSize)
-
 ## Examples
 
 ### Extract specific genomic regions:
-```bash
-# Create a BED file with regions of interest
-echo -e "chr1\t1000\t2000\nchr1\t5000\t6000" > regions.bed
 
+```
 # Extract these regions from MAF
-python MAFtools.py select -b regions.bed -o extracted.maf genome.maf
+python MAFtools.py select -b Example/test.bed -o extracted.maf Example/test.maf
 ```
 
-### Filter high-quality alignments:
+### Filter alignments for quality or similarity criteria:
 ```bash
 # Keep blocks with <15% gaps, 3+ sequences, and 70-95% similarity
-python MAFtools.py filter -g 0.15 -n 3 -m 0.70 -a 0.95 -o filtered.maf genome.maf
+python MAFtools.py filter -g 0.15 -n 3 -m 0.70 -a 0.95 -o filtered.maf Example/test.maf
 ```
 
 ### Create sliding windows for analysis:
@@ -171,6 +150,12 @@ python MAFtools.py filter -g 0.15 -n 3 -m 0.70 -a 0.95 -o filtered.maf genome.ma
 python MAFtools.py window -l 100 -s 25 -o windows.maf genome.maf
 ```
 
+## MAF Format Notes
+
+- Coordinates are 0-based, half-open intervals
+- The reference sequence is typically the first sequence in each block
+- Gap characters are represented by '-'
+- Each block contains aligned sequences with metadata (start, size, strand, srcSize)
 
 ## Citation
 
