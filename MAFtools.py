@@ -31,7 +31,7 @@ THIS_FILE = os.path.abspath(__file__)
 THIS_DIR = os.path.dirname(THIS_FILE)
 
 
-usage_statement = "Usage: MAFtools [program] [options] [MAF file], where `program` is one of: `describe`, `merge`, `filter`, `window`, `select`, `toBed`"
+usage_statement = "Usage: MAFtools [program] [options] [MAF file], where `program` is one of: `describe`, `blockdescribe`, `merge`, `filter`, `window`, `select`, `toBed`"
 
 
 strand_dict = {
@@ -604,6 +604,105 @@ class MAFObject:
             }
         for (k, v) in data.items():
             print("%s: %s" % (k, v))
+
+    def _calculate_pairwise_similarity(self, seq1: str, seq2: str) -> float:
+        """
+        Calculate pairwise similarity between two aligned sequences.
+        
+        Similarity = matching positions / (total positions - gap-only positions)
+        """
+        if len(seq1) != len(seq2):
+            raise ValueError("Sequences must be of equal length")
+        
+        matches = 0
+        compared_positions = 0
+        
+        for c1, c2 in zip(seq1, seq2):
+            # Skip positions where both sequences have gaps
+            if c1 == '-' and c2 == '-':
+                continue
+                
+            compared_positions += 1
+            
+            # Count matches (ignoring case)
+            if c1 == c2 and c1 != '-':
+                matches += 1
+        
+        if compared_positions == 0:
+            return 0.0
+        
+        return matches / compared_positions
+    
+    
+    def blockdescribe(self, output_tsv_file: str):
+        """
+        Generate a tab-delimited summary file with statistics for each alignment block.
+        
+        Creates a TSV file with one row per alignment block containing:
+        - refseq: Reference sequence name
+        - start: Start coordinate
+        - size: Size of reference sequence (non-gap bases)
+        - length: Number of columns in alignment
+        - mean_pairwise_identity: Average pairwise identity to reference
+        - gaps_fraction: Average gap fraction across all sequences
+        
+        Args:
+            output_tsv_file: Path to output TSV file
+        """
+        # Open output file and write header
+        with open(output_tsv_file, 'w') as out:
+            # Write header
+            out.write("refseq\tstart\tsize\tlength\tmean_pairwise_identity\tgaps_fraction\n")
+            
+            # Process each alignment block
+            alignments = AlignIO.parse(self.maf_file, "maf")
+            block_num = 0
+            
+            for alignment in alignments:
+                block_num += 1
+                
+                # Find reference sequence (first one)
+                if len(alignment) == 0:
+                    continue
+                    
+                ref_record = alignment[0]
+                ref_seq = str(ref_record.seq).upper()
+                
+                # Get reference metadata
+                refseq_name = ref_record.id
+                start = ref_record.annotations.get('start', 0)
+                size = ref_record.annotations.get('size', 0)
+                
+                # Get alignment length (number of columns)
+                alignment_length = alignment.get_alignment_length()
+                
+                # Calculate mean pairwise identity to reference
+                pairwise_identities = []
+                if len(alignment) > 1:
+                    for i in range(1, len(alignment)):
+                        seq = str(alignment[i].seq).upper()
+                        identity = self._calculate_pairwise_similarity(ref_seq, seq)
+                        pairwise_identities.append(identity)
+                
+                mean_pairwise_identity = sum(pairwise_identities) / len(pairwise_identities) if pairwise_identities else 1.0
+                
+                # Calculate average gap fraction
+                gap_fractions = []
+                for record in alignment:
+                    seq_str = str(record.seq)
+                    gap_count = seq_str.count('-')
+                    gap_fraction = gap_count / len(seq_str) if len(seq_str) > 0 else 0
+                    gap_fractions.append(gap_fraction)
+                
+                avg_gap_fraction = sum(gap_fractions) / len(gap_fractions) if gap_fractions else 0.0
+                
+                # Write row
+                out.write(f"{refseq_name}\t{start}\t{size}\t{alignment_length}\t"
+                        f"{mean_pairwise_identity:.4f}\t{avg_gap_fraction:.4f}\n")
+        
+        print(f"Block description complete: {block_num} blocks processed")
+        print(f"Output written to: {output_tsv_file}")
+
             
     def filter(self, output_maf_file: str, 
             maximum_average_gaps: float = 0.25,
@@ -698,33 +797,6 @@ class MAFObject:
         
         return True  # Passed all filters
 
-    def _calculate_pairwise_similarity(self, seq1: str, seq2: str) -> float:
-        """
-        Calculate pairwise similarity between two aligned sequences.
-        
-        Similarity = matching positions / (total positions - gap-only positions)
-        """
-        if len(seq1) != len(seq2):
-            raise ValueError("Sequences must be of equal length")
-        
-        matches = 0
-        compared_positions = 0
-        
-        for c1, c2 in zip(seq1, seq2):
-            # Skip positions where both sequences have gaps
-            if c1 == '-' and c2 == '-':
-                continue
-                
-            compared_positions += 1
-            
-            # Count matches (ignoring case)
-            if c1 == c2 and c1 != '-':
-                matches += 1
-        
-        if compared_positions == 0:
-            return 0.0
-        
-        return matches / compared_positions
 
     def _write_alignment_block(self, file_handle, alignment):
         """Write a single alignment block in MAF format."""
@@ -889,6 +961,12 @@ def main():
 
     if args[1] == "describe":
         mafobject.describe()
+
+    elif args[1] == "blockdescribe":
+        parser.add_option("-o", "--output", action="store", default="mafblocks.tsv", type="string", dest="output_tsv", help="Output TSV file (default: mafblocks.tsv)")
+        options, args = parser.parse_args()
+
+        mafobject.blockdescribe(options.output_tsv)
 
     elif args[1] == "merge":
         parser.add_option("-o", "--output", action="store", type="string", dest="out_file", default="output.maf", help="MAF file to write to. If empty, results alignments are redirected to output.maf.")
