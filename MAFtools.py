@@ -296,15 +296,9 @@ class MAFObject:
         overlap_start = max(ref_start, bed_start)
         overlap_end = min(ref_end, bed_end)
 
-        print("#################################")
-        print(bed_start, bed_end)
-        print(ref_start, ref_end)
-
         if overlap_start >= overlap_end:
-            print("-> No overlap.")
             return None  # No overlap
         
-        print("Overlap: ", overlap_start, " ", overlap_end)
         # Find reference sequence
         ref_record = None
         ref_idx = None
@@ -409,6 +403,7 @@ class MAFObject:
             
         return coords
     
+    
     def format_maf_block(self, alignment, coords: Dict[str, Dict], score: float = 0.0) -> str:
         """Format an alignment block in MAF format."""
         lines = []
@@ -426,11 +421,12 @@ class MAFObject:
                 
         return '\n'.join(lines)
     
+
     def extract_blocks(self, output_file: str):
         """Main method to extract MAF blocks based on BED intervals."""
         # Parse BED intervals
         bed_intervals = self.parse_bed()
-        print(bed_intervals)
+        print(f"Loaded {len(bed_intervals)} BED intervals")
         
         # Open output file
         with open(output_file, 'w') as out:
@@ -447,33 +443,121 @@ class MAFObject:
                     if record.id.startswith(self.reference_species):
                         ref_record = record
                         break
-                        
+                
                 if ref_record is None:
                     continue
-                    
+                
                 # Get MAF coordinates
                 ref_start = ref_record.annotations.get('start', 0)
                 ref_size = ref_record.annotations.get('size', 0)
                 
                 # Check each BED interval
                 for chrom, bed_start, bed_end in bed_intervals:
-                    # Determine reference sequence
-                    self.reference_species = chrom
-
+                    # Check if reference matches chromosome
+                    if not ref_record.id.startswith(chrom):
+                        continue
+                    
                     # Extract if there's overlap
                     extracted = self.extract_alignment_region(
                         alignment, ref_start, ref_size, bed_start, bed_end
                     )
                     
                     if extracted:
-                        # Update coordinates
-                        coords = self.update_maf_coordinates(
-                            extracted, ref_start, ref_size, bed_start, bed_end
-                        )
-                        
-                        # Format and write
-                        maf_block = self.format_maf_block(extracted, coords)
-                        out.write(maf_block + "\n\n")
+                        # Write the extracted block
+                        self._write_extracted_block(out, extracted, ref_start, ref_size, 
+                                                bed_start, bed_end)
+
+
+    def _write_extracted_block(self, file_handle, alignment, ref_start: int, ref_size: int,
+                            bed_start: int, bed_end: int):
+        
+        """Write an extracted alignment block with correct coordinates."""
+        # Calculate overlap region
+        ref_end = ref_start + ref_size
+        overlap_start = max(ref_start, bed_start)
+        overlap_end = min(ref_end, bed_end)
+
+        # We require at least 2 overlapping positions
+        if abs(overlap_end - overlap_start) < 2: 
+            return
+        
+        output_records = []
+        
+        # Get score from alignment annotations
+        score = alignment.annotations.get('score', 0.0) if hasattr(alignment, 'annotations') else 0.0
+
+        # Write 'a' line
+        # file_handle.write(f"a score={score}\n")
+        
+        # Process each sequence
+        for record in alignment:
+            # Get original annotations
+            orig_start = record.annotations.get('start', 0)
+            orig_strand = record.annotations.get('strand', '+')
+            orig_srcsize = record.annotations.get('srcSize', 0)
+            
+            # Count non-gap bases in extracted sequence
+            seq_str = str(record.seq)
+            new_size = sum(1 for base in seq_str if base != '-')
+
+            # Make absolutely sure that the string is of valid length (i.e. not just gaps)
+            if new_size < 1:
+                return
+            
+            # Calculate new start position
+            if record.id.startswith(self.reference_species):
+                # For reference: use the overlap start
+                new_start = overlap_start
+            else:
+                # For non-reference: need to calculate based on alignment
+                # Find how many bases were skipped before extraction
+                ref_record = None
+                for r in alignment:
+                    if r.id.startswith(self.reference_species):
+                        ref_record = r
+                        break
+                
+                if ref_record:
+                    # Count non-gap bases in reference before extraction point
+                    ref_seq_full = str(ref_record.seq)
+                    bases_before = 0
+                    ref_pos = ref_start
+                    
+                    for i, base in enumerate(ref_seq_full):
+                        if ref_pos >= overlap_start:
+                            # This is where extraction started
+                            # Count non-gap bases in this sequence up to this column
+                            this_seq_before = str(record.seq)[:i]
+                            bases_before = sum(1 for b in this_seq_before if b != '-')
+                            break
+                        if base != '-':
+                            ref_pos += 1
+                    
+                    new_start = orig_start + bases_before
+                else:
+                    new_start = orig_start
+            
+            # Ensure strand is a valid string
+            if isinstance(orig_strand, int):
+                strand = '+' if orig_strand > 0 else '-'
+            else:
+                strand = str(orig_strand) if orig_strand in ['+', '-'] else '+'
+
+            # Update record data
+            record.annotations["start"] = new_start
+            record.annotations["size"] = new_size
+            record.seq = Seq(seq_str)
+
+            output_records.append(record)
+            
+            # Write 's' line with all 7 required fields
+            # file_handle.write(f"s {record.id} {new_start} {new_size} {strand} {orig_srcsize} {seq_str}\n")
+        
+        # Add blank line between blocks
+        # file_handle.write("\n")
+
+        output_alignment = MultipleSeqAlignment(output_records)
+        AlignIO.write(output_alignment, file_handle, format='maf')
 
 
     def merge(self, options):
