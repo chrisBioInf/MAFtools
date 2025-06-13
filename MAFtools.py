@@ -616,32 +616,31 @@ class MAFObject:
         # Process each MAF alignment block
         alignments = AlignIO.parse(self.maf_file, "maf")
         
-        for alignment in alignments:
-            # Find reference sequence in this alignment block
-            ref_record = None
-            for record in alignment:
-                if record.id.startswith(self.reference_species):
-                    ref_record = record
-                    break
-            
-            if ref_record is None:
-                continue  # Skip blocks without reference sequence
-            
-            # Get MAF coordinates for reference
-            ref_seq_name = ref_record.id
-            ref_start = ref_record.annotations.get('start', 0)
-            ref_size = ref_record.annotations.get('size', 0)
-            
-            # Calculate end position (BED uses 0-based, half-open intervals like MAF)
-            ref_end = ref_start + ref_size
-            
-            # Add to BED entries
-            bed_entries.append((ref_seq_name, ref_start, ref_end))
-        
-        # Write BED file
-        with open(output_bed_file, 'w') as out:
-            for seq_name, start, end in bed_entries:
-                out.write(f"{seq_name}\t{start}\t{end}\n")
+        with open(output_bed_file, 'a') as out:
+            for alignment in alignments:
+                # Find reference sequence in this alignment block
+                ref_record = None
+                for record in alignment:
+                    if record.id.startswith(self.reference_species):
+                        ref_record = record
+                        break
+                
+                if ref_record is None:
+                    continue  # Skip blocks without reference sequence
+                
+                # Get MAF coordinates for reference
+                ref_seq_name = ref_record.id
+                ref_start = ref_record.annotations.get('start', 0)
+                ref_size = ref_record.annotations.get('size', 0)
+                
+                # Calculate end position (BED uses 0-based, half-open intervals like MAF)
+                ref_end = ref_start + ref_size
+                
+                # Add to BED entries
+                bed_entries.append((ref_seq_name, ref_start, ref_end))
+
+                # Write BED file
+                out.write(f"{ref_seq_name}\t{ref_start}\t{ref_end}\n")
 
 
     def describe(self):
