@@ -561,8 +561,6 @@ class MAFObject:
 
 
     def merge(self, options):
-        args = args[1:]
-
         output_file = options.out_file
         
         alignments = AlignIO.parse(self.maf_file, "maf")
@@ -1061,7 +1059,7 @@ def main():
         parser.add_option("-m", "--min-seqs", action="store", default=2, type="int", dest="min_seqs", help="No merging will happen, if the blocks share this few or less sequences (Default: 2).")
         options, args = parser.parse_args()
 
-        mafobject.merge(parser)
+        mafobject.merge(options)
 
     elif args[1] == "select":
         parser.add_option("-b", "--bed", action="store", default="", type="string", dest="bed", help="The bed file with coordinated to extract.")
